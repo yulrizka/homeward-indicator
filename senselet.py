@@ -3,7 +3,8 @@ Created on Feb 16, 2013
 
 @author: pim
 '''
-
+import threading
+import Queue
 """
 A proxy to facilitate some weird syntax
 """
@@ -27,15 +28,21 @@ class Event(object):
     def __init__(self, dataGenerator=None):
         self.dataGenerator = dataGenerator
         self._pipeline = []
+        self._inputEvents = []
     
     def attach(self, function, state=None):
         self._pipeline.append((function, state))
         return self
         
     ### Execution methods ###
-    #TODO: use decorator to check builder for completeness?
 
-    def values(self):
+    """
+    Invoked before actually running this event. This method is provided so it can be conveniently overridden by subclasses.
+    """
+    def _prepare(self):
+        pass
+
+    def _run(self):        
         for x in self.dataGenerator:
             date = x['date']
             value = x['value']
@@ -49,8 +56,56 @@ class Event(object):
                     value = newValue
             if stopped:
                 continue
-            yield value
-        return
+
+    def run(self):
+        self._prepare()
+        self._run()
+
+
+    """
+    DOESN"T WORK, THREAD IS NEVER STOPPED!
+    Get values, reusing the run method, at the cost of an extra thread. 
+    """
+    def _never_stopping_values(self):
+        q = Queue.Queue()
+        def queueWriter(date,value,state):
+            q.put((date,value))
+            return value
+            
+        self.attach(queueWriter)
+        self.makeItSo()
+        while True:
+            item = q.get()
+            if item is StopIteration: return
+            yield item
+    
+    """
+    Execute and yield values
+    """
+    def values(self):
+        self._prepare()
+        for x in self.dataGenerator:
+            date = x['date']
+            value = x['value']
+            stopped = False
+            for (stage, state) in self._pipeline:
+                newValue = stage(date,value,state)
+                if newValue is None:
+                    stopped = True
+                    break
+                else:
+                    value = newValue
+            if stopped:
+                continue
+            yield (date,value)
+    
+    """
+    Execute the event in a thread
+    """
+    def makeItSo(self):
+        self._prepare()
+        t = threading.Thread(target=self._run)
+        t.start()
     
     #on* Operators yield the value when ....
     def onChange(self):
@@ -109,3 +164,5 @@ class Event(object):
             return value
         self.attach(printValue)
         return self
+    
+    ### combine multiple Events ###

@@ -16,6 +16,7 @@ class User(senselet.Event):
         self.username = username
         self.password = password
         self._sensors = []
+        self._deviceType = None
         self._refreshInterval = None
         self._fromDate = None
 
@@ -30,6 +31,10 @@ class User(senselet.Event):
             raise Exception('Event error. sensor already set')
         self._sensors.append(name)
         
+        return self
+    
+    def deviceType(self, deviceType):
+        self._deviceType = deviceType
         return self
     
     def realTime(self, interval, fromDate=None):
@@ -50,7 +55,8 @@ class User(senselet.Event):
             api = state["api"]
             sensorId = state["sensorId"]
             par = {'data':[{'value':value, 'date':date}]}
-            api.SensorDataPost(sensorId, par)
+            if not api.SensorDataPost(sensorId, par):
+                raise Exception("Couldn't post to sensor. Error: {}".format(api.getResponse()))
             return value
         self.attach(func, state=state)
         return self
@@ -66,15 +72,16 @@ class User(senselet.Event):
         return self
 
 
+    
     #override
-    def values(self):
+    def _prepare(self):
+        super(User, self)._prepare()
         if self._refreshInterval is not None and self._fromDate is None:
             fromDate = time.time()
         else:
-            fromDate = self._fromDate 
-        self.dataGenerator = getSensorData(self.username, self.password, self._sensors[0], fromDate=fromDate, refreshInterval=self._refreshInterval)
-        return senselet.Event.values(self)
-        
+            fromDate = self._fromDate
+        sensorId = getSensorId(self.username, self.password, self._sensors[0], self._deviceType)
+        self.dataGenerator = getSensorData(self.username, self.password, sensorId, fromDate=fromDate, refreshInterval=self._refreshInterval)
 
 def getDataFromFile(dataFile):
     json_data=open(dataFile)
@@ -83,20 +90,25 @@ def getDataFromFile(dataFile):
     for x in data['data']:
         yield x
         
-def getSensorData(user, password, sensorname, fromDate=None, refreshInterval=None):
+def getSensorId(user,password, sensorname, deviceType=None):
     api=senseapi.SenseAPI()
     api.AuthenticateSessionId(user, senseapi.MD5Hash(password))
-    
     #find sensor
     sensorId = None
-    if not api.SensorsGet({'per_page':1000}):
+    if not api.SensorsGet({'per_page':1000, 'details':'full'}):
             raise Exception("Couldn't get sensors. {}".format(api.getResponse()))
     sensors = json.loads(api.getResponse())['sensors']
     correctSensors = filter(lambda x: x['name'] == sensorname, sensors)
+    if deviceType:
+        correctSensors = filter(lambda x: x.has_key("device") and x['device']['type'] == deviceType, correctSensors)
     if len(correctSensors) == 0:
         raise ValueError("Sensor {} not found!".format(sensorname))
-    sensorId = correctSensors[0]["id"]
- 
+    sensorId = correctSensors[-1]["id"]
+    return sensorId
+
+def getSensorData(user, password, sensorId, fromDate=None, refreshInterval=None):
+    api=senseapi.SenseAPI()
+    api.AuthenticateSessionId(user, senseapi.MD5Hash(password))
     par= {'sort': 'ASC'}
     if fromDate is not None:
         par['start_date'] = fromDate
