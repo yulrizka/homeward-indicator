@@ -191,6 +191,18 @@ def onBecomeTrue(self):
             return None
     self.attach(func,state)
     
+@eventMethod("onBecomeFalse")
+def onBecomeFalse(self):
+    state = {'prev':True}
+    def func(date,value,state):
+        prev = state.get('prev')
+        state['prev'] = value
+        if not value and prev:
+            return value
+        else:
+            return None
+    self.attach(func,state)
+
 @eventExpression("onTrue")
 def onTrue(date,value):
     return True if value else None

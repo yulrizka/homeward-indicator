@@ -41,7 +41,8 @@ def main():
     pim.realTime(30)
     
     
-    pim.position.isNear(senseHQ).forTime(2*60).onBecomeTrue().sendNotification(deviceToken, "Welcome at sense! ").makeItSo()
+    pim.position.isNear(senseHQ).forTime(2*60).onBecomeTrue().sendNotification(deviceToken, "Welcome at Sense! ").makeItSo()
+    pim.position.isNear(senseHQ).forTime(2*60).onBecomeFalse().sendNotification(deviceToken, "Goodbye Sense! ").makeItSo()
     #no reuse...
     pim = User("pimtest2", credentials["pimtest2"]["password"])
     pim.realTime(30).isIdle().forTime(60*60).onBecomeTrue().sendNotification(deviceToken, "Couch potato!").makeItSo()
