@@ -6,7 +6,7 @@ Created on Feb 16, 2013
 import threading
 import Queue
 """
-A proxy to facilitate some weird syntax
+A proxy to facilitate some weird syntax. Probably a bad idea, don't count on this being around in the future.
 """
 class Proxy(object):
     def __init__(self, proxied, default=None):
@@ -30,8 +30,8 @@ class Event(object):
         self._pipeline = []
         self._inputEvents = []
     
-    def attach(self, function, state=None):
-        self._pipeline.append((function, state))
+    def attach(self, function, *args, **kwargs):
+        self._pipeline.append((function, args, kwargs))
         return self
         
     ### Execution methods ###
@@ -47,8 +47,12 @@ class Event(object):
             date = x['date']
             value = x['value']
             stopped = False
-            for (stage, state) in self._pipeline:
-                newValue = stage(date,value,state)
+            for (stage, args, kwargs) in self._pipeline:
+                try:
+                    newValue = stage(date,value,*args, **kwargs)
+                except TypeError:
+                    print "Exception in function {}.".format(stage.__name__)
+                    raise
                 if newValue is None:
                     stopped = True
                     break
@@ -88,8 +92,8 @@ class Event(object):
             date = x['date']
             value = x['value']
             stopped = False
-            for (stage, state) in self._pipeline:
-                newValue = stage(date,value,state)
+            for (stage, args, kwargs) in self._pipeline:
+                newValue = stage(date,value,*args, **kwargs)
                 if newValue is None:
                     stopped = True
                     break
@@ -106,63 +110,114 @@ class Event(object):
         self._prepare()
         t = threading.Thread(target=self._run)
         t.start()
-    
-    #on* Operators yield the value when ....
-    def onChange(self):
-        def func(date,value,state):
-            prev = state.get('value')
-            changed = prev is None or value != prev
-            state['value'] = value
-            if changed:
-                return value
-            else:
-                return None
-        self.attach(func, state = {})
-        return self
-    
-    def onBecomeTrue(self):
-        state = {'prev':False}
-        def func(date,value,state):
-            prev = state.get('prev')
-            state['prev'] = value
-            if value and not prev:
-                return value
-            else:
-                return None
-        self.attach(func, state = state)
-        return self
-    
-    def onTrue(self):
-        self.attach(lambda date,value,state: True if value else None)
-        return self
-    
-    #is* operators yield whether the condition holds
-    
-    def forTime(self, time):
-        def func(date,value,state):
-            since = state.get("since")
-            if value:
-                if since is not None:
-                    return date - since >= time
-                else:
-                    state["since"] = date
-            elif since is not None:
-                del state["since"]
-            return False
-        self.attach(func, state={})
-        return self
+        
+"""
+Decorator to provide some syntactic sugar. This decorator:
+- patches the Event object with the function
+- returns self to allow method chaining
 
-    #
-    def isNot(self):
-        self.attach(lambda date,value,state: not value)
-        return self
+example:
 
-    #helps to debug
-    def printValue(self):
-        def printValue(date, value, state):
-            print "{}:{}".format(date, value)
+@eventMethod("isNear")
+def isNear(self,referencePosition):
+    self.distanceFrom(referencePosition)
+    self.attach(lambda date,distance: distance < 100)
+
+Event().isNear(referencePosition).otherFuncion()
+
+Note that eventMethods are omnipotent, they can have state.
+
+Trust me, the code is fine. Don't mess with it!
+"""
+def eventMethod(name):
+    def wrap(f):
+        def wrapped_f(self, *args,**kwargs):
+            f(self, *args,**kwargs)
+            return self
+        print "Declaring method Event.{}".format(name)
+        setattr(Event, name, wrapped_f)
+        return wrapped_f
+    return wrap
+
+"""
+Decorator to provide even more syntactic sugar. This decorator:
+- patches the Event object with the name
+- returns self to allow method chaining
+- attaches the function to the Event pipeline
+
+example:
+
+@eventExpression("isNear")
+def isNearFunction(date,value,referencePosition)
+    return referencePosition.distanceTo(value) < 100
+
+Event().isNear(referencePosition)
+Note that eventExpressions are stateless
+
+Ouch, this is some magic Python, and I'm not sure it's worth the debugging pains and complains I'll get for this syntactic sugar.
+Trust me, the code is fine. Don't mess with it!
+"""
+def eventExpression(name):
+    def wrap(f):
+        def wrapped_f(self, *args, **kwargs):
+            self.attach(f,*args, **kwargs)
+            return self
+        setattr(Event, name, wrapped_f)
+        print "Declaring expression Event.{}".format(name)
+        return wrapped_f
+    return wrap
+    
+@eventMethod("onChanged")
+def onChanged(self):
+    def func(date,value,state):
+        prev = state.get('value')
+        changed = prev is None or value != prev
+        state['value'] = value
+        if changed:
             return value
-        self.attach(printValue)
-        return self
+        else:
+            return None
+        self.attach(func, {})
     
-    ### combine multiple Events ###
+@eventMethod("onBecomeTrue")
+def onBecomeTrue(self):
+    state = {'prev':False}
+    def func(date,value,state):
+        prev = state.get('prev')
+        state['prev'] = value
+        if value and not prev:
+            return value
+        else:
+            return None
+    self.attach(func,state)
+    
+@eventExpression("onTrue")
+def onTrue(date,value):
+    return True if value else None
+    
+#is* operators yield whether the condition holds
+    
+@eventMethod("forTime")
+def forTime(self, time):
+    def func(date,value,state):
+        since = state.get("since")
+        if value:
+            if since is not None:
+                return date - since >= time
+            else:
+                state["since"] = date
+        elif since is not None:
+            del state["since"]
+        return False
+    self.attach(func, {})
+
+@eventExpression("isFalse")
+def isNot(date,value):
+    return not value
+
+
+#helps to debug
+@eventExpression("printValue")
+def printValue(date, value):
+    print "{}:{}".format(date, value)
+    return value

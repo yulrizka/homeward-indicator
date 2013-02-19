@@ -6,6 +6,8 @@ Created on Feb 17, 2013
 from math import radians, cos, sin, asin, sqrt
 import json
 from geopy import geocoders
+import senselet
+
 def haversine(lat1, lon1, lat2, lon2):
     """
     Calculate the great circle distance between two points 
@@ -48,17 +50,8 @@ class Position(object):
 def distance(pos1,pos2):
         return haversine(pos1.lat,pos1.lon, pos2.lat,pos2.lon)
 
-#
-def distanceFrom(self, pos):
-    state = {}
-    state['ref']= pos
-    def func(date,value,state):
-        x = json.loads(value)
-        pos = Position(float(x['latitude']), float(x['longitude']))
-        return distance(pos, state['ref'])
-    self.attach(func,state=state)
-    return self
-
-#Dynamic patching!
-import senselet
-senselet.Event.distanceFrom = distanceFrom
+@senselet.eventExpression("distanceFrom")
+def func(date,value,refPos):
+    x = json.loads(value)
+    pos = Position(float(x['latitude']), float(x['longitude']))
+    return distance(pos, refPos)
