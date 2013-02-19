@@ -116,7 +116,7 @@ class Event(object):
             if changed:
                 return value
             else:
-                return
+                return None
         self.attach(func, state = {})
         return self
     
@@ -128,7 +128,7 @@ class Event(object):
             if value and not prev:
                 return value
             else:
-                return
+                return None
         self.attach(func, state = state)
         return self
     
@@ -148,7 +148,7 @@ class Event(object):
                     state["since"] = date
             elif since is not None:
                 del state["since"]
-            pass
+            return False
         self.attach(func, state={})
         return self
 

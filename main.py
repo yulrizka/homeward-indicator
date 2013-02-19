@@ -4,12 +4,12 @@ Created on Feb 17, 2013
 @author: pim
 '''
 
-from commonsense import User, getSensorId
+from commonsense import User
 from location import Position
 import senselet
-import senseapi
 import json
 import datetime
+import math
 
 credentials = json.load(open("credentials.json"))
 
@@ -27,7 +27,11 @@ User.onNear = onNear
 
 def isIdle(self):
     self.sensor("acceleration")
-    self.attach(lambda date,x,state: x < 1)
+    def func(date, x, state):
+        value = json.loads(x)
+        magnitude = math.sqrt(float(value["x-axis"])**2 + float(value["y-axis"])**2 + float(value["z-axis"])**2)
+        return magnitude < 2
+    self.attach(func)
     return self
 User.isIdle = isIdle
 
