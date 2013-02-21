@@ -25,8 +25,8 @@ class Proxy(object):
 Wrapper for events 
 """
 class Event(object):
-    def __init__(self, dataGenerator=None):
-        self.dataGenerator = dataGenerator
+    def __init__(self, inputData=None):
+        self.inputData = inputData
         self._pipeline = []
         self._inputEvents = []
     
@@ -40,12 +40,16 @@ class Event(object):
     Invoked before actually running this event. This method is provided so it can be conveniently overridden by subclasses.
     """
     def _prepare(self):
-        pass
+        structure =  "{}: ".format("Event")
+        for (stage, args, kwargs) in self._pipeline:
+            structure += " -> {}()".format(stage.__name__)
+        print structure
 
-    def _run(self):        
-        for x in self.dataGenerator:
-            date = x['date']
-            value = x['value']
+    def _run(self):
+        if self.inputData is None:
+            raise Exception("No input data for event!")
+                  
+        for (date,value) in self.inputData():
             stopped = False
             for (stage, args, kwargs) in self._pipeline:
                 try:
@@ -88,12 +92,14 @@ class Event(object):
     """
     def values(self):
         self._prepare()
-        for x in self.dataGenerator:
-            date = x['date']
-            value = x['value']
+        for (date,value) in self.inputData():
             stopped = False
             for (stage, args, kwargs) in self._pipeline:
-                newValue = stage(date,value,*args, **kwargs)
+                try:
+                    newValue = stage(date,value,*args, **kwargs)
+                except TypeError:
+                    print "Exception in function {}.".format(stage.__name__)
+                    raise
                 if newValue is None:
                     stopped = True
                     break
@@ -154,7 +160,6 @@ def isNearFunction(date,value,referencePosition)
 Event().isNear(referencePosition)
 Note that eventExpressions are stateless
 
-Ouch, this is some magic Python, and I'm not sure it's worth the debugging pains and complains I'll get for this syntactic sugar.
 Trust me, the code is fine. Don't mess with it!
 """
 def eventExpression(name):
@@ -182,26 +187,26 @@ def onChanged(self):
 @eventMethod("onBecomeTrue")
 def onBecomeTrue(self):
     state = {'prev':False}
-    def func(date,value,state):
+    def onBecomeTrue(date,value,state):
         prev = state.get('prev')
         state['prev'] = value
         if value and not prev:
             return value
         else:
             return None
-    self.attach(func,state)
+    self.attach(onBecomeTrue,state)
     
 @eventMethod("onBecomeFalse")
 def onBecomeFalse(self):
     state = {'prev':True}
-    def func(date,value,state):
+    def onBecomeFalse(date,value,state):
         prev = state.get('prev')
         state['prev'] = value
         if not value and prev:
             return value
         else:
             return None
-    self.attach(func,state)
+    self.attach(onBecomeFalse,state)
 
 @eventExpression("onTrue")
 def onTrue(date,value):
@@ -211,7 +216,7 @@ def onTrue(date,value):
     
 @eventMethod("forTime")
 def forTime(self, time):
-    def func(date,value,state):
+    def forTime(date,value,state):
         since = state.get("since")
         if value:
             if since is not None:
@@ -221,10 +226,10 @@ def forTime(self, time):
         elif since is not None:
             del state["since"]
         return False
-    self.attach(func, {})
+    self.attach(forTime, {})
 
 @eventExpression("isFalse")
-def isNot(date,value):
+def isFalse(date,value):
     return not value
 
 
@@ -232,4 +237,9 @@ def isNot(date,value):
 @eventExpression("printValue")
 def printValue(date, value):
     print "{}:{}".format(date, value)
+    return value
+
+@eventExpression("printMsg")
+def printMsg(date, value, msg):
+    print msg
     return value

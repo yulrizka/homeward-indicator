@@ -50,8 +50,31 @@ class Position(object):
 def distance(pos1,pos2):
         return haversine(pos1.lat,pos1.lon, pos2.lat,pos2.lon)
 
-@senselet.eventExpression("distanceFrom")
-def func(date,value,refPos):
+@senselet.eventExpression("distanceTo")
+def distanceTo(date,value,refPos):
     x = json.loads(value)
     pos = Position(float(x['latitude']), float(x['longitude']))
     return distance(pos, refPos)
+
+@senselet.eventMethod("onNear")
+def onNear(self,pos,radius=200):
+    self.sensor("position")
+    def onNear(date,x,pos):
+        return x if pos.distance(Position(json=x)) < radius else None
+    self.attach(onNear)
+
+
+@senselet.eventMethod("isNear")
+def isNear(self,pos,radius=200):
+    self.sensor("position")
+    def isNear(date,value,pos):
+        return pos.distance(Position(json=value)) < radius
+    self.attach(isNear,pos)    
+
+@senselet.eventMethod("arrivedAt")
+def arriviedAt(self, location):
+    self.isNear(location).forTime(2*60).onBecomeTrue()    
+
+@senselet.eventMethod("departedFrom")
+def departedFrom(self, location):
+    return self.isNear(location).forTime(2*60).onBecomeFalse()
