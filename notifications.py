@@ -1,6 +1,11 @@
+"""
+Crappy notifications, just put in here for some experimenting with my iPhone
+"""
+
 #import gevent.monkey
 #from gevent.pool import Pool
 #gevent.monkey.patch_socket()
+
 
 from multiprocessing import Process, Queue
 
