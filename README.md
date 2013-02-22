@@ -11,7 +11,7 @@ Have fun!
 This is a prototype, don't expect to much documentation here. But for starters
 use pip to install the needed packages.
 ```
-pip install --local -r requirements.txt
+pip install --user -r requirements.txt
 ```
 
 .run runs your task
