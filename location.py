@@ -66,7 +66,6 @@ def onNear(self,pos,radius=200):
 
 @senselet.eventMethod("isNear")
 def isNear(self,pos,radius=200):
-    self.sensor("position")
     def isNear(date,value,pos):
         return pos.distance(Position(json=value)) < radius
     self.attach(isNear,pos)    

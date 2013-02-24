@@ -28,6 +28,7 @@ class UserEvent(senselet.Event):
         self._deviceType = None
         self._refreshInterval = None
         self._fromDate = None
+        self._ownedBy = None
 
     ### Event builder methods ###    
     def sensors(self, names, allowMulti=False):
@@ -35,9 +36,10 @@ class UserEvent(senselet.Event):
             raise Exception('Event error. sensor already set')
         self._sensors.extend(names)
 
-    def sensor(self, name, allowMulti=False):
+    def sensor(self, name, allowMulti=False, ownedBy=None):
         if not allowMulti and len(self._sensors) > 0 :
             raise Exception('Event error. sensor already set')
+        self._ownedBy=ownedBy
         self._sensors.append(name)
         
         return self
@@ -84,7 +86,7 @@ class UserEvent(senselet.Event):
             fromDate = time.time()
         else:
             fromDate = self._fromDate
-        sensorId = getSensorId(self.api, self._sensors[0], self._deviceType)
+        sensorId = getSensorId(self.api, self._sensors[0], self._deviceType, self._ownedBy)
         def gen():
             return getSensorData(self.api, sensorId, fromDate=fromDate, refreshInterval=self._refreshInterval)
         self.inputData = gen
@@ -96,7 +98,7 @@ def getDataFromFile(dataFile):
     for x in data['data']:
         yield (x['date'], x['value'])
         
-def getSensorId(api, sensorName, deviceType=None):
+def getSensorId(api, sensorName, deviceType=None, ownedBy=None):
     #find sensor
     if not api.SensorsGet({'per_page':1000, 'details':'full'}):
             raise Exception("Couldn't get sensors. {}".format(api.getResponse()))
@@ -104,6 +106,8 @@ def getSensorId(api, sensorName, deviceType=None):
     correctSensors = filter(lambda x: x['name'] == sensorName, sensors)
     if deviceType:
         correctSensors = filter(lambda x: x.has_key("device") and x['device']['type'] == deviceType, correctSensors)
+    if ownedBy:
+        correctSensors = filter(lambda x: x.has_key("owner") and x['owner']['username'] == ownedBy, correctSensors)
     if len(correctSensors) == 0:
         raise ValueError("Sensor {} not found!".format(sensorName))
     sensorId = correctSensors[-1]["id"]
