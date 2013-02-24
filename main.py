@@ -24,8 +24,10 @@ def ioSetup():
   global io
   io = wiringpi.GPIO(wiringpi.GPIO.WPI_MODE_SYS)
   io.pinMode(18,io.OUTPUT)
+  readLightStatus()
 
 def light(on):
+  print "{}: lights {}".format(datetime.datetime.now(), "On" if on else "Off")
   if on:
     status = io.HIGH
     lightStatus = True
@@ -37,12 +39,17 @@ def light(on):
 
 def isLate():
   now = datetime.datetime.now()
-  return now.hour >= 21
+  hour = now.hour
+  return hour >= 21 or hour <= 9
+
+def readLightStatus():
+  lightStatus = io.digitalRead(18)
+  return lightStatus
 
 def lightsOffWhenIsLate():
   while True:
     time.sleep(60)
-    if isLate():
+    if isLate() and readLightStatus() == 1:
       print "It's late, turning off lights"
       light(False)
 
@@ -54,7 +61,7 @@ def onAfaterOfficeHour(self):
     weekday = dateTime.weekday()
     hour = dateTime.hour
     print "{} {}".format(weekday, hour)
-    print not weekday in range(0,5) and not hour >= 17
+    print not weekday in range(0,5) and not hour >= 1,
     return value if not weekday in range(0,5) and not hour >= 17 else None
   self.attach(onAfaterOfficeHour)
 
