@@ -1,3 +1,4 @@
+#!/usr/bin/python
 '''
 Created on Feb 17, 2013
 
@@ -54,22 +55,18 @@ def lightsOffWhenIsLate():
       light(False)
 
 #define our own condition
-@eventMethod("onAfaterOfficeHour")
-def onAfaterOfficeHour(self):
-  def onAfaterOfficeHour(date, value):
-    dateTime = datetime.datetime.fromtimestamp(date)
-    weekday = dateTime.weekday()
-    hour = dateTime.hour
-    print "{} {}".format(weekday, hour)
-    print not weekday in range(0,5) and not hour >= 1,
-    return value if not weekday in range(0,5) and not hour >= 17 else None
-  self.attach(onAfaterOfficeHour)
+@eventExpression("onAfterOfficeHour")
+def onAfterOfficeHour(date, value):
+  dateTime = datetime.datetime.fromtimestamp(date)
+  weekday = dateTime.weekday()
+  hour = dateTime.hour
+  afterOfficeHour =  weekday in range(0,5) and hour >= 17
+  print "after office {} result: {}".format(dateTime, afterOfficeHour)
+  return value if afterOfficeHour else None
 
-@eventMethod("onNotLate")
-def onNotLate(self):
-  def onNotLate(date, value):
-    return not isLate()
-  self.attach(onNotLate)
+@eventExpression("onNotLate")
+def onNotLate(date, value):
+  return not isLate()
 
 @eventExpression("turnOnLight")
 def turnOnLight(date, value):
@@ -78,10 +75,10 @@ def turnOnLight(date, value):
 def main():
     ioSetup()
 
-    light(True)
+    #light(True)
     senseHQ = Position(address="Lloydstraat 5, Rotterdam, Netherlands")
     putri = User("putri129@gmail.com", credentials["putri129@gmail.com"])
-    putri.event().sensor("position", ownedBy="ahmy@sense-os.nl").departedFrom(senseHQ).onAfaterOfficeHour().onNotLate().turnOnLight().realTime(60).makeItSo()
+    putri.event().sensor("position", ownedBy="ahmy@sense-os.nl").departedFrom(senseHQ).onAfterOfficeHour().onNotLate().turnOnLight().realTime(60).makeItSo()
 
     # just turn off the light when it is lage (> 21.00)
     th = threading.Thread(target=lightsOffWhenIsLate)
