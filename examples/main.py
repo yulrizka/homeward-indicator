@@ -4,12 +4,11 @@ Created on Feb 17, 2013
 @author: pim
 '''
 
-from commonsense import User
-from location import Position, isNear, onNear, arriviedAt, departedFrom
+from senselet.events.commonsense import User
+from senselet.location import Position
 import json
 import math
-from event import Event, eventExpression, eventMethod, eventAction
-import eventLogic
+from  senselet.core import eventMethod, eventExpression, eventAction 
 
 from subprocess import call
 credentials = json.load(open("credentials.json"))

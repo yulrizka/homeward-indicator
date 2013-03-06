@@ -6,7 +6,7 @@ Created on Feb 17, 2013
 from math import radians, cos, sin, asin, sqrt
 import json
 from geopy import geocoders
-from event import eventExpression, eventMethod
+from senselet.core import eventExpression, eventMethod
 
 def haversine(lat1, lon1, lat2, lon2):
     """

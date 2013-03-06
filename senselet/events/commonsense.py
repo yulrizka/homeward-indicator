@@ -7,8 +7,7 @@ Created on Feb 16, 2013
 import json
 import senseapi
 import time
-import event
-import notifications
+from senselet.core import *
 
 
 class User(object):
@@ -61,16 +60,6 @@ class UserEvent(event.Event):
             par = {'data':[{'value':value, 'date':date}]}
             if not self.api.SensorDataPost(sensorId, par):
                 raise Exception("Couldn't post to sensor. Error: {}".format(self.api.getResponse()))
-            return value
-        self.attach(func, state=state)
-        return self
-    
-    def sendNotification(self, deviceToken, message):
-        state = {"deviceToken":deviceToken, "message":message}
-        def func(date, value, state):
-            deviceToken = state["deviceToken"]
-            message = state["message"]
-            notifications.sendNotification(deviceToken, message)
             return value
         self.attach(func, state=state)
         return self
