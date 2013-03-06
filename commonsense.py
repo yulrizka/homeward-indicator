@@ -7,7 +7,7 @@ Created on Feb 16, 2013
 import json
 import senseapi
 import time
-import senselet
+import event
 import notifications
 
 
@@ -20,7 +20,7 @@ class User(object):
     def event(self):
         return UserEvent(self)
     
-class UserEvent(senselet.Event):
+class UserEvent(event.Event):
     def __init__(self, user):
         super(UserEvent, self).__init__()
         self.api = user.api
@@ -74,8 +74,6 @@ class UserEvent(senselet.Event):
             return value
         self.attach(func, state=state)
         return self
-
-
     
     #override
     def _prepare(self):
@@ -130,7 +128,7 @@ def getSensorData(api, sensorId, fromDate=None, refreshInterval=None):
         elif len(response['data']) >= 2:
             for x in response['data'][1:]: yield (x['date'], x['value'])
         
-        #see whether all data is gotten
+        #see whether all data is got
         nr = len(response['data'])
         if (nr < par['per_page']):
             #all data retrieved

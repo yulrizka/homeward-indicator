@@ -4,7 +4,7 @@ Define the logic operators to combine multiple event rules.
 
 import Queue, threading
 from operator import itemgetter
-import senselet
+import event
 
 def andEvent(self, other):
     def andInputs():
@@ -15,8 +15,20 @@ def andEvent(self, other):
             if value is None:
                 continue
             yield (date, value)
-    return senselet.Event(inputData=andInputs)
-senselet.Event.andEvent = andEvent
+    return event.Event(inputData=andInputs)
+event.Event.andEvent = andEvent
+
+def orEvent(self, other):
+    def orInputs():
+        for tuples in combineGenerators([self.values,other.values]):
+            value = reduce(lambda x,y: x or y[1] == True, tuples, False)
+            date = max(tuples, key=itemgetter(0))[0]
+            #False or None returns None, True or None returns true
+            if value is None:
+                continue
+            yield (date, value)
+    return event.Event(inputData=orInputs)
+event.Event.andEvent = andEvent
 
 
 

@@ -34,7 +34,6 @@ class Event(object):
         self._pipeline.append((function, args, kwargs))
         return self
         
-    ### Execution methods ###
 
     """
     Invoked before actually running this event. This method is provided so it can be conveniently overridden by subclasses.
@@ -171,7 +170,38 @@ def eventExpression(name):
         print "Declaring expression Event.{}".format(name)
         return wrapped_f
     return wrap
-    
+
+"""
+Decorator to provide even more syntactic sugar. This decorator:
+- patches the Event object with the name
+- returns self to allow method chaining
+- wraps the method in a function that retains the value to allow functions after the action to work on the same 
+
+example:
+
+@eventAction("sendChat")
+def sendChat(date,value,msg)
+    sendChatMessage("{}: {}".format(date,msg))
+        
+Event().sendChat("Hi there")
+Note that eventActions don't transform the input
+
+Trust me, the code is fine. Don't mess with it!
+"""
+def eventAction(name):
+    def wrap(f):
+        def wrapped_f(self, *args, **kwargs):
+            def returnValueWrapper(date, value): 
+                f(*args, **kwargs)
+                return value
+            self.attach(returnValueWrapper)
+            return self
+        setattr(Event, name, wrapped_f)
+        print "Declaring action Event.{}".format(name)
+        return wrapped_f
+    return wrap
+
+###  Basic 'on' events  ###
 @eventMethod("onChanged")
 def onChanged(self):
     def func(date,value,state):
@@ -182,6 +212,18 @@ def onChanged(self):
             return value
         else:
             return None
+        self.attach(func, {})
+
+@eventMethod("onUnchanged")
+def onUnhanged(self):
+    def func(date,value,state):
+        prev = state.get('value')
+        changed = prev is None or value != prev
+        state['value'] = value
+        if changed:
+            return None
+        else:
+            return value
         self.attach(func, {})
     
 @eventMethod("onBecomeTrue")
@@ -211,9 +253,9 @@ def onBecomeFalse(self):
 @eventExpression("onTrue")
 def onTrue(date,value):
     return True if value else None
-    
-#is* operators yield whether the condition holds
-    
+
+###  basic time related conditions  ###
+
 @eventMethod("forTime")
 def forTime(self, time):
     def forTime(date,value,state):
@@ -228,18 +270,25 @@ def forTime(self, time):
         return False
     self.attach(forTime, {})
 
+###  Boolean logic  ###
+
 @eventExpression("isFalse")
 def isFalse(date,value):
     return not value
 
+###  Actions  ###
 
-#helps to debug
-@eventExpression("printValue")
-def printValue(date, value):
-    print "{}:{}".format(date, value)
-    return value
+@eventMethod("do")
+def do(self, func, *args, **kwargs):
+    def wrapper(date,value):
+        func(*args, **kwargs)
+    self.attach(wrapper)
 
-@eventExpression("printMsg")
+@eventAction("printMsg")
 def printMsg(date, value, msg):
     print msg
-    return value
+
+#helps to debug
+@eventAction("printValue")
+def printValue(date, value):
+    print "{}:{}".format(date, value)

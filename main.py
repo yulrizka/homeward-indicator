@@ -4,14 +4,14 @@ Created on Feb 17, 2013
 @author: pim
 '''
 
-import senselet
 from commonsense import User
 from location import Position, isNear, onNear, arriviedAt, departedFrom
 import json
 import math
-from senselet import Event, eventExpression, eventMethod
+from event import Event, eventExpression, eventMethod, eventAction
 import eventLogic
 
+from subprocess import call
 credentials = json.load(open("credentials.json"))
 
 #define our own condition
@@ -34,6 +34,11 @@ def isAbove(date,value, threshold):
 @eventMethod("isAggresionDetected")
 def isAggresionDetected(self):
     self.sensor("noise_sensor").isAbove(70)
+    
+@eventAction("speak")
+def speak(msg):
+    #TODO: properly escape value or use a pipe from python directly to festival
+    call('echo "{}" | festival --tts'.format(msg), shell=True)
     
 
 def timeoutDemo(user1,user2):
@@ -65,8 +70,10 @@ def main():
     jp = User("jp@sense-os.nl", credentials["jp@sense-os.nl"]["password"])
     deviceToken = "58ceb9c67321fecc125f01aa6828ccec7b87795e6ba74a7b9fe0404f9d77d5b4"
     
+    
     #some location based triggers
-    pim.event().deviceType("iPhone").arrivedAt(senseHQ).printMsg("Welcome at Sense!").makeItSo()
+    pim.event().deviceType("iPhone").arrivedAt(senseHQ).speak("Elvis has left the building!").run()
+    return
     pim.event().deviceType("iPhone").departedFrom(senseHQ).printMsg("See you later, alligator!").makeItSo()
     
     #coaching

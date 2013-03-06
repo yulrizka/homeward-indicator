@@ -6,7 +6,7 @@ Created on Feb 17, 2013
 from math import radians, cos, sin, asin, sqrt
 import json
 from geopy import geocoders
-import senselet
+from event import eventExpression, eventMethod
 
 def haversine(lat1, lon1, lat2, lon2):
     """
@@ -50,13 +50,13 @@ class Position(object):
 def distance(pos1,pos2):
         return haversine(pos1.lat,pos1.lon, pos2.lat,pos2.lon)
 
-@senselet.eventExpression("distanceTo")
+@eventExpression("distanceTo")
 def distanceTo(date,value,refPos):
     x = json.loads(value)
     pos = Position(float(x['latitude']), float(x['longitude']))
     return distance(pos, refPos)
 
-@senselet.eventMethod("onNear")
+@eventMethod("onNear")
 def onNear(self,pos,radius=200):
     self.sensor("position")
     def onNear(date,x,pos):
@@ -64,17 +64,17 @@ def onNear(self,pos,radius=200):
     self.attach(onNear)
 
 
-@senselet.eventMethod("isNear")
+@eventMethod("isNear")
 def isNear(self,pos,radius=200):
     self.sensor("position")
     def isNear(date,value,pos):
         return pos.distance(Position(json=value)) < radius
     self.attach(isNear,pos)    
 
-@senselet.eventMethod("arrivedAt")
+@eventMethod("arrivedAt")
 def arriviedAt(self, location):
     self.isNear(location).forTime(2*60).onBecomeTrue()    
 
-@senselet.eventMethod("departedFrom")
+@eventMethod("departedFrom")
 def departedFrom(self, location):
     return self.isNear(location).forTime(2*60).onBecomeFalse()
