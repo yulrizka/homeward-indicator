@@ -1,7 +1,7 @@
 import smtplib
 from senselet.core.event import eventAction
 import json
-    
+import os
 
 
 class Mailer:
@@ -29,22 +29,22 @@ class Mailer:
         print 'done!'
         smtpserver.close()
 
+fileName = os.path.join(os.getcwd(), 'credentials.json')
 credentials = json.load(open(fileName))
 user = credentials["email"]["username"]
 password = credentials["email"]["password"]
 
 mailer = Mailer(user, password)
+del fileName
+del credentials
 del user
 del password
 
-@eventAction
+@eventAction("sendMail")
 def sendMail(to, subject, message):
     mailer.send(to, subject, message)
 
 if __name__ == '__main__':
-    import json
-    import os
-
     fileName = os.path.join(os.path.dirname(__file__), 'credentials.json')
     # credentials.json example:
     # {"email": {"username": "sender@gmail.com", "password": "foo"}}
