@@ -11,7 +11,7 @@ Have fun!
 This is a prototype, don't expect to much documentation here. But for starters
 use pip to install the needed packages.
 ```
-pip install --user -r requirements.txt
+python-pip install --user git+https://github.com/pimnijdam/eventScripting.git
 ```
 
 .run runs your task
