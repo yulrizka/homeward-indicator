@@ -12,6 +12,7 @@ setup(
 	long_description=open("README.txt").read(),
 	install_requires=[
 		"geopy",
+		"oauth",
 		#common-sense-python-lib, but it's not yet in the python packages
 	],
 )
