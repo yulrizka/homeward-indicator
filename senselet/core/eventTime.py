@@ -60,3 +60,7 @@ def timeIsBetween(event, after, before):
         event.attach(betweenTime)
     else:
         raise TypeError("Arguments should be datetime.time")
+
+@eventMethod("onTimeIsBetween")
+def onTimeIsBetween(event, after, before):
+    event.timeIsBetween(after,before).onTrue()

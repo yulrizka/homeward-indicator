@@ -59,7 +59,7 @@ class UserEvent(event.Event):
             sensorId = state["sensorId"]
             par = {'data':[{'value':value, 'date':date}]}
             if not self.api.SensorDataPost(sensorId, par):
-                raise Exception("Couldn't post to sensor. Error: {}".format(self.api.getResponse()))
+                raise Exception("Couldn't post to sensor {}. Error: {}".format(sensorId, self.api.getResponse()))
             return value
         self.attach(func, state=state)
         return self
@@ -83,14 +83,16 @@ def getDataFromFile(dataFile):
     for x in data['data']:
         yield (x['date'], x['value'])
         
-def getSensorId(api, sensorName, deviceType=None):
+def getSensorId(api, sensorName, deviceType=None, description=None):
     #find sensor
-    if not api.SensorsGet({'per_page':1000, 'details':'full'}):
+    if not api.SensorsGet({'per_page':1000, 'details':'full', 'order':'asc'}):
             raise Exception("Couldn't get sensors. {}".format(api.getResponse()))
     sensors = json.loads(api.getResponse())['sensors']
     correctSensors = filter(lambda x: x['name'] == sensorName, sensors)
     if deviceType:
         correctSensors = filter(lambda x: x.has_key("device") and x['device']['type'] == deviceType, correctSensors)
+    if description:
+        correctSensors = filter(lambda x: x.has_key("devicy_type") and x["device_type"] == description, correctSensors)
     if len(correctSensors) == 0:
         raise ValueError("Sensor {} not found!".format(sensorName))
     sensorId = correctSensors[-1]["id"]

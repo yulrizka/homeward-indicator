@@ -75,8 +75,7 @@ def main():
     return
     pim.event().deviceType("iPhone").departedFrom(senseHQ).printMsg("See you later, alligator!").makeItSo()
     
-    #coaching
-    pim.event().deviceType("iPhone").isIdle().forTime(60*60).onBecomeTrue().printMsg("Couch potato!").sendNotification(deviceToken,  "Couch potato!").makeItSo()
+    
 
     #warning signal
     pim.event().deviceType("iPhone").isNear(senseHQ).andEvent(jp.event().isNear(senseHQ)).onBecomeTrue().printMsg("Run for your live!").makeItSo()
