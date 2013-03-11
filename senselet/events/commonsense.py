@@ -5,28 +5,106 @@ Created on Feb 16, 2013
 '''
 
 import json
+import threading
 import senseapi
 import time
 from senselet.core import *
+import Queue
+import copy
+from twisted.internet.error import SSLError
+
+class DataUploader:
+    #size to limit an upload request to
+    MAX_UPLOAD_SIZE = 900*1024
+    def __init__(self, api, interval=30):
+        self.api = api
+        self.interval = interval
+        self.dataQueue = Queue.Queue()
+        threading.Thread(target=self.run).start()
+        
+    def addData(self, sensorId, date, value):
+        self.dataQueue.put((sensorId, date, value))
+        
+    def upload(self):
+        sensorData = {}
+        size = 0
+        while size < self.MAX_UPLOAD_SIZE:
+            try:
+                (sensorId, date, value) = self.dataQueue.get_nowait()
+            except Queue.Empty:
+                break
+            if sensorId not in sensorData:
+                sensorData[sensorId] = []
+            item = {"date":date, "value":value}
+            sensorData[sensorId].append(item)
+            size += len(json.dumps(item))
+        
+
+        parameters = {"sensors":[]}
+        for sensorId in sensorData:
+            parameters["sensors"].append({"sensor_id":sensorId, "data":sensorData[sensorId]})
+        while not self.api.SensorsDataPost(parameters):
+            print "Error uploading to sensor: {}".format(self.api.getResponse())
+            time.sleep(30)
+        
+    def run(self):
+        while True:
+            while self.dataQueue.qsize() > 0:
+                try:
+                    self.upload()
+                except SSLError:
+                    print "SSLError."
+            time.sleep(self.interval)
+
+
+class Session(object):
+    def __init__(self,api):
+        self.api = api
+        self.dataUploader = DataUploader(api)
+
+    def user(self, username):
+        return User(username, self)
+
+    def me(self):
+        self.api.UsersGetCurrent()
+        username = json.loads(self.api.getResponse())["user"]["username"]
+        u = User(username, self)
+        u._isMe = True
+        return u
+    
+    def createSensorOnce(self, sensorName, description, dataType, dataStructure=None):
+        try:
+            sensorId = getSensorId(self.api, sensorName, description=description)
+        except ValueError:
+            #doesn't exist, create sensor
+            par = {'sensor': {'name':sensorName, 'device_type':description, 'data_type':'dataType'}}
+            if dataStructure:
+                par["sensor"]["data_structure"] = dataStructure
+            if self.api.SensorsPost(par):
+                sensorId = self.api.getLocationId()
+        return sensorId
 
 
 class User(object):
-    def __init__(self, username, password):
+    def __init__(self, username, session):
+        self._session = session
         self.username = username
-        self.api = senseapi.SenseAPI()
-        self.api.AuthenticateSessionId(username, senseapi.MD5Hash(password))
-
+        self._isMe = False
+        
     def event(self):
         return UserEvent(self)
-    
+
+
 class UserEvent(event.Event):
     def __init__(self, user):
         super(UserEvent, self).__init__()
-        self.api = user.api
+        self.api = user._session.api
+        self._user = user
         self._sensors = []
         self._deviceType = None
         self._refreshInterval = None
         self._fromDate = None
+        self._description = None
 
     ### Event builder methods ###    
     def sensors(self, names, allowMulti=False):
@@ -45,6 +123,10 @@ class UserEvent(event.Event):
         self._deviceType = deviceType
         return self
     
+    def description(self, description):
+        self._description = description
+        return self
+    
     def realTime(self, interval, fromDate=None):
         self._refreshInterval = interval
         self._fromDate = fromDate
@@ -52,16 +134,11 @@ class UserEvent(event.Event):
     
     
     ### Actions ###
-    def saveToSensor(self, sensorId): 
-        state = {}
-        state["sensorId"] = sensorId
-        def func(date, value, state):
-            sensorId = state["sensorId"]
-            par = {'data':[{'value':value, 'date':date}]}
-            if not self.api.SensorDataPost(sensorId, par):
-                raise Exception("Couldn't post to sensor {}. Error: {}".format(sensorId, self.api.getResponse()))
+    def saveToSensor(self, sensorId):
+        def func(date, value):
+            self._user._session.dataUploader.addData(sensorId, date, value)
             return value
-        self.attach(func, state=state)
+        self.attach(func)
         return self
     
     #override
@@ -71,11 +148,17 @@ class UserEvent(event.Event):
             fromDate = time.time()
         else:
             fromDate = self._fromDate
-        sensorId = getSensorId(self.api, self._sensors[0], self._deviceType)
-        def gen():
-            return getSensorData(self.api, sensorId, fromDate=fromDate, refreshInterval=self._refreshInterval)
-        self.inputData = gen
+        if self._user._isMe:
+            sensorId = getSensorId(self._user._session.api, self._sensors[0], self._deviceType, self._description)
+        else:
+            sensorId = getSensorId(self._user._session.api, self._sensors[0], self._deviceType, self._description, self._user.username)
 
+        self.inputData = getSensorData(self._user._session.api, sensorId, fromDate=fromDate, refreshInterval=self._refreshInterval)
+
+@eventExpression("saveToSensor")    
+def saveToSensor(date,value, session, sensorId):
+    session.dataUploader.addData(sensorId, date, value)
+    
 def getDataFromFile(dataFile):
     json_data=open(dataFile)
     data = json.load(json_data)
@@ -83,16 +166,19 @@ def getDataFromFile(dataFile):
     for x in data['data']:
         yield (x['date'], x['value'])
         
-def getSensorId(api, sensorName, deviceType=None, description=None):
+def getSensorId(api, sensorName, deviceType=None, description=None, userName=None):
+    owned = 1 if userName is None else 0
     #find sensor
-    if not api.SensorsGet({'per_page':1000, 'details':'full', 'order':'asc'}):
+    if not api.SensorsGet({'per_page':1000, 'details':'full', 'order':'asc', "owned":owned}):
             raise Exception("Couldn't get sensors. {}".format(api.getResponse()))
     sensors = json.loads(api.getResponse())['sensors']
     correctSensors = filter(lambda x: x['name'] == sensorName, sensors)
     if deviceType:
-        correctSensors = filter(lambda x: x.has_key("device") and x['device']['type'] == deviceType, correctSensors)
+        correctSensors = filter(lambda x: "device" in x and x['device']['type'] == deviceType, correctSensors)
     if description:
-        correctSensors = filter(lambda x: x.has_key("devicy_type") and x["device_type"] == description, correctSensors)
+        correctSensors = filter(lambda x: "device_type" in x and x["device_type"] == description, correctSensors)
+    if userName:
+        correctSensors = filter(lambda x: "owner" in x and x["owner"]["username"] == userName, correctSensors)
     if len(correctSensors) == 0:
         raise ValueError("Sensor {} not found!".format(sensorName))
     sensorId = correctSensors[-1]["id"]
@@ -131,5 +217,3 @@ def getSensorData(api, sensorId, fromDate=None, refreshInterval=None):
         first = False
         if len(response['data']) > 0:
             par['start_date'] = response['data'][-1]['date']
-            
-            

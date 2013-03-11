@@ -41,7 +41,7 @@ class Position(object):
             self.lat = float(value['latitude'])
             self.lon = float(value['longitude'])
         else:
-            raise Exception("Wrong init")
+            raise ValueError()
         
     def distance(self, pos2):
         return distance(self, pos2)

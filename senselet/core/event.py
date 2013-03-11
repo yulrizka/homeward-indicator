@@ -39,7 +39,7 @@ class Event(object):
     Invoked before actually running this event. This method is provided so it can be conveniently overridden by subclasses.
     """
     def _prepare(self):
-        structure =  "{}: ".format("Event")
+        structure =  "{}: {}".format("Event",self.inputData.__name__)
         for (stage, args, kwargs) in self._pipeline:
             structure += " -> {}()".format(stage.__name__)
         print structure
@@ -48,7 +48,7 @@ class Event(object):
         if self.inputData is None:
             raise Exception("No input data for event!")
                   
-        for (date,value) in self.inputData():
+        for (date,value) in self.inputData:
             stopped = False
             for (stage, args, kwargs) in self._pipeline:
                 try:
@@ -91,7 +91,7 @@ class Event(object):
     """
     def values(self):
         self._prepare()
-        for (date,value) in self.inputData():
+        for (date,value) in self.inputData:
             stopped = False
             for (stage, args, kwargs) in self._pipeline:
                 try:
@@ -285,10 +285,26 @@ def do(self, func, *args, **kwargs):
     self.attach(wrapper)
 
 @eventAction("printMsg")
-def printMsg(date, value, msg):
+def printMsg(msg):
     print msg
 
 #helps to debug
-@eventAction("printValue")
+@eventExpression("printValue")
 def printValue(date, value):
     print "{}:{}".format(date, value)
+    return value
+
+@eventMethod("accumulate")
+def accumulate(self):
+    """
+        Accumulate value. Behaviour depends on input:
+        TODO: make the code work like the comment
+        - float and int are summed
+        - for a set each element is summed
+        - for an array with numbers each element is summed
+    """
+    state = {"value":0}
+    def accumulate(date,value,state):
+        state["value"] += value
+        return state["value"]
+    self.attach(accumulate, state)
