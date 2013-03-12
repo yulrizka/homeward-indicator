@@ -33,7 +33,7 @@ class Position(object):
             self.lat = args[0]
             self.lon = args[1]
         elif address is not None:
-            g = geocoders.Google()
+            g = geocoders.OpenMapQuest()
             place, (lat, lon) = g.geocode(address)
             self.lat = lat
             self.lon = lon
