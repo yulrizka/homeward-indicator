@@ -6,13 +6,19 @@ Created on Mar 7, 2013
 from senselet.events.commonsense import User, getSensorId
 from  senselet.core import eventMethod, eventExpression, eventAction
 from senselet.actions.mail import *
-from datetime import time as dayTime
+from datetime import time as dayTime, timedelta
+from senselet.events import commonsense
 import datetime
 import json
 import math
 from senselet.events import senseapi
 
 credentials = json.load(open("credentials.json"))
+api = senseapi.SenseAPI()
+if not api.AuthenticateSessionId(credentials["me"]["user"], senseapi.MD5Hash(credentials["me"]["password"])):
+    print "Couldn't login: ".format(api.getResponse())
+session = commonsense.Session(api)
+me = session.me()
 
 #define our own condition
 @eventExpression("isAbove")
@@ -78,25 +84,12 @@ def trueForTime(self):
     self.attach(trueForTime,state)
 
 
-api = senseapi.SenseAPI()
-api.AuthenticateSessionId(credentials["pimtest2"]["password"])
-pim = User.me()
-
 #coaching
-pim.event().deviceType("iPhone 4").isIdle().forTime(60*60).onBecomeTrue().onTimeIsBetween(dayTime(11), dayTime(21)).sendMail("pim@sense-os.nl", "Get up", "Move! you lazy couch potato.").realTime(30).makeItSo()
+me.event().isIdle().forTime(timedelta(hours=1)).onBecomeTrue().onTimeIsBetween(dayTime(11), dayTime(21)).sendMail("pim@sense-os.nl", "Get up", "Move! you lazy couch potato.").realTime(30).makeItSo()
 
-def getOrMake(sensorName):
-    try:
-        sensorId = getSensorId(pim.api, sensorName)
-    except ValueError:
-        #doesn't exist, create sensor
-        if pim.api.SensorsPost({'sensor': {'name':sensorName, 'device_type':sensorName, 'data_type':'integer'}}):
-            sensorId = pim.api.getLocationId()
-    return sensorId
+activityCountId = session.createSensorOnce("daily activity time", "daily activity time", "integer")
 
-activityCountId = getOrMake("daily activity time")
+me.event().sensor("daily activity time").isAbove(45 * 60).onBecomeTrue().sendMail("pim@sense-os.nl", "Goal reached", "You've reached your goal of one hour of activity today!").realTime(30).makeItSo()
+me.event().isActive().forTime(timedelta(minutes=15)).onBecomeTrue().sendMail("pim@sense-os.nl", "Goal reached", "You reached your goal of 15 minutes continuous activity.").realTime(30).makeItSo()
 
-pim.event().sensor("daily activity time").isAbove(45 * 60).onBecomeTrue().sendMail("pim@sense-os.nl", "Goal reached", "You've reached your goal of one hour of activity today!").realTime(30).makeItSo()
-pim.event().deviceType("iPhone 4").isActive().forTime(15*60).onBecomeTrue().sendMail("pim@sense-os.nl", "Goal reached", "You reached your goal of 15 minutes continuous activity.").realTime(30).makeItSo()
-
-pim.event().deviceType("iPhone 4").isActive().timeTrue().sumDailyValue().saveToSensor(activityCountId, batchSize=10).realTime(30).makeItSo()
+me.event().isActive().timeTrue().sumDailyValue().saveToSensor(activityCountId).realTime(30).makeItSo()

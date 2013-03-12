@@ -7,6 +7,7 @@ from math import radians, cos, sin, asin, sqrt
 import json
 from geopy import geocoders
 from senselet.core import eventExpression, eventMethod
+from datetime import timedelta
 
 def haversine(lat1, lon1, lat2, lon2):
     """
@@ -73,8 +74,8 @@ def isNear(self,pos,radius=200):
 
 @eventMethod("arrivedAt")
 def arriviedAt(self, location):
-    self.isNear(location).forTime(2*60).onBecomeTrue()    
+    self.isNear(location).forTime(timedelta(minutes=5)).onBecomeTrue()    
 
 @eventMethod("departedFrom")
 def departedFrom(self, location):
-    return self.isNear(location).forTime(2*60).onBecomeFalse()
+    return self.isNear(location).forTime(timedelta(minutes=2)).onBecomeFalse()

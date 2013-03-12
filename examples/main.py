@@ -4,11 +4,13 @@ Created on Feb 17, 2013
 @author: pim
 '''
 
-from senselet.events.commonsense import User
+from senselet.events import commonsense
+from senselet.events import senseapi
 from senselet.location import Position
 import json
 import math
 from  senselet.core import eventMethod, eventExpression, eventAction 
+from datetime import timedelta
 
 from subprocess import call
 credentials = json.load(open("credentials.json"))
@@ -64,26 +66,31 @@ def timeoutDemo(user1,user2):
 
 def main():
     senseHQ = Position(address="Lloydstraat 5, Rotterdam, Netherlands")
+    #setup
+    credentials = json.load(open("credentials.json"))
+    api = senseapi.SenseAPI()
+    if not api.AuthenticateSessionId(credentials["me"]["user"], senseapi.MD5Hash(credentials["me"]["password"])):
+        print "Couldn't login: ".format(api.getResponse())
+        return
+    session = commonsense.Session(api)
+    me = session.me()
+    jp = session.user("jp@sense-os.nl")
     
-    pim = User("pimtest2", credentials["pimtest2"]["password"])
-    jp = User("jp@sense-os.nl", credentials["jp@sense-os.nl"]["password"])
-    deviceToken = "58ceb9c67321fecc125f01aa6828ccec7b87795e6ba74a7b9fe0404f9d77d5b4"
     
     
     #some location based triggers
-    pim.event().deviceType("iPhone").arrivedAt(senseHQ).speak("Elvis has left the building!").run()
+    me.event().arrivedAt(senseHQ).speak("Elvis has left the building!").run()
     return
-    pim.event().deviceType("iPhone").departedFrom(senseHQ).printMsg("See you later, alligator!").makeItSo()
+    me.event().departedFrom(senseHQ).printMsg("See you later, alligator!").makeItSo()
     
     
 
     #warning signal
-    pim.event().deviceType("iPhone").isNear(senseHQ).andEvent(jp.event().isNear(senseHQ)).onBecomeTrue().printMsg("Run for your live!").makeItSo()
+    me.event().isNear(senseHQ).andEvent(jp.event().isNear(senseHQ)).onBecomeTrue().printMsg("Run for your live!").makeItSo()
     
     #trapped
-    pim.event().deviceType("iPhone").isNear(senseHQ).andEvent(jp.event().isNear(senseHQ)).forTime(5 * 60).onBecomeTrue().printMsg("You're trapped!").makeItSo()
+    me.event().isNear(senseHQ).andEvent(jp.event().isNear(senseHQ)).forTime(timedelta(minutes=5)).onBecomeTrue().printMsg("You're trapped!").makeItSo()
 
-    #no reuse...
     #pim.newEvent().realTime(30).isIdle().forTime(60*60).onBecomeTrue().sendNotification(deviceToken, "Couch potato!").makeItSo()
 
 if __name__ == '__main__':

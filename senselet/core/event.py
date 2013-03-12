@@ -5,6 +5,7 @@ Created on Feb 16, 2013
 '''
 import threading
 import Queue
+import datetime
 """
 A proxy to facilitate some weird syntax. Probably a bad idea, don't count on this being around in the future.
 """
@@ -39,7 +40,8 @@ class Event(object):
     Invoked before actually running this event. This method is provided so it can be conveniently overridden by subclasses.
     """
     def _prepare(self):
-        structure =  "{}: {}".format("Event",self.inputData.__name__)
+        origin = self.inputData.__name__ if self.inputData is not None else "Unknown"
+        structure =  "{}: {}".format("Event",origin)
         for (stage, args, kwargs) in self._pipeline:
             structure += " -> {}()".format(stage.__name__)
         print structure
@@ -258,6 +260,8 @@ def onTrue(date,value):
 
 @eventMethod("forTime")
 def forTime(self, time):
+    if not isinstance(time, datetime.timedelta):
+        raise TypeError("Argument should be a datetime.timedelta object")
     def forTime(date,value,state):
         since = state.get("since")
         if value:

@@ -12,7 +12,7 @@ import requests
 
 credentials = json.load(open("credentials.json"))
 api = senseapi.SenseAPI()
-if not api.AuthenticateSessionId("pimtest2",senseapi.MD5Hash(credentials["pimtest2"]["password"])):
+if not api.AuthenticateSessionId(credentials["me"]["user"], senseapi.MD5Hash(credentials["me"]["password"])):
     print "Couldn't login: ".format(api.getResponse())
 session = commonsense.Session(api)
 me = session.me()
@@ -38,4 +38,4 @@ def karmaToWidgetList(date, value, widget):
     
 
 #me.event().sensor("karma (QA)").description("sense-android-library").karmaToWidgetList("karma_list").run()
-me.event().sensor("daily activity time").toWidget("time_active").realTime(30,fromDate=0).run()
+me.event().sensor("daily activity time").toWidget("time_active").realTime(30).run()

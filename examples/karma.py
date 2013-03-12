@@ -26,18 +26,16 @@ me = session.me()
 def githubIssues(repos,state="all", since=None):
     if since is None:
         for issue in repos.get_issues(state=state, sort="updated", direction="asc"):
-            date = time.mktime(issue.updated_at.timetuple())
-            yield (date,issue)
+            yield (issue.updated_at,issue)
     else:
         for issue in repos.get_issues(state=state, sort="updated", direction="asc", since=since):
-            date = time.mktime(issue.updated_at.timetuple())
-            yield (date,issue)
+            yield (issue.updated_at,issue)
 
 def realtimeGithubIssues(repos,state="all",since=None,interval=60):
     lastDate = since
     while True:
         for (date,issue) in githubIssues(repos,state,since=lastDate):
-            lastDate = datetime.datetime.fromtimestamp(date)
+            lastDate = date
             yield (date,issue)
         time.sleep(interval)    
 

@@ -8,6 +8,7 @@ import json
 import threading
 import senseapi
 import time
+import datetime
 from senselet.core import *
 import Queue
 import copy
@@ -35,7 +36,8 @@ class DataUploader:
                 break
             if sensorId not in sensorData:
                 sensorData[sensorId] = []
-            item = {"date":date, "value":value}
+            unixTimestamp = time.mktime(date.timetuple())
+            item = {"date":unixTimestamp, "value":value}
             sensorData[sensorId].append(item)
             size += len(json.dumps(item))
         
@@ -145,7 +147,7 @@ class UserEvent(event.Event):
     def _prepare(self):
         super(UserEvent, self)._prepare()
         if self._refreshInterval is not None and self._fromDate is None:
-            fromDate = time.time()
+            fromDate = datetime.datetime.now()
         else:
             fromDate = self._fromDate
         if self._user._isMe:
@@ -187,7 +189,7 @@ def getSensorId(api, sensorName, deviceType=None, description=None, userName=Non
 def getSensorData(api, sensorId, fromDate=None, refreshInterval=None):
     par= {'sort': 'ASC'}
     if fromDate is not None:
-        par['start_date'] = fromDate
+        par['start_date'] = time.mktime(fromDate.timetuple())
     par['per_page'] = 1000
 
     first = True
@@ -201,9 +203,9 @@ def getSensorData(api, sensorId, fromDate=None, refreshInterval=None):
         
         #yield each data point
         if first:
-            for x in response['data']: yield (x['date'], x['value'])
+            for x in response['data']: yield (datetime.datetime.fromtimestamp(float(x['date'])), x['value'])
         elif len(response['data']) >= 2:
-            for x in response['data'][1:]: yield (x['date'], x['value'])
+            for x in response['data'][1:]: yield (datetime.datetime.fromtimestamp(float(x['date'])), x['value'])
         
         #see whether all data is got
         nr = len(response['data'])

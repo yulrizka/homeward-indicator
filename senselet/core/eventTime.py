@@ -12,14 +12,12 @@ def isAfter(event, after):
     if isinstance(after, datetime.time):
         #Do comparison with time of day, ignore date
         def afterTime(date,value):
-            inputDate = datetime.datetime.fromtimestamp(date).time()
-            return inputDate > after
+            return date.time() > after
         event.attach(afterTime)
     elif isinstance(after, datetime):
         #Do comparison with datetime
         def afterDate(date,value):
-            inputDate = datetime.datetime.fromtimestamp(date).time()
-            return inputDate > after
+            return value > after
         event.attach(afterDate)
     else:
         raise TypeError("Argument is neither datetime.time nor datetime.datetime")
@@ -34,14 +32,12 @@ def isBefore(event, before):
     if isinstance(before, datetime.time):
         #Do comparison with time of day, ignore date
         def beforeTime(date,value):
-            inputDate = datetime.datetime.fromtimestamp(date).time()
-            return inputDate < before
+            return date.time() < before
         event.attach(beforeTime)
     elif isinstance(before, datetime):
         #Do comparison with datetime
         def beforeDate(date,value):
-            inputDate = datetime.datetime.fromtimestamp(date).time()
-            return inputDate < before
+            return date < before
         event.attach(beforeDate)
     else:
         raise TypeError("Argument is neither datetime.time nor datetime.datetime")
@@ -55,8 +51,7 @@ def timeIsBetween(event, after, before):
     if isinstance(before, datetime.time) and isinstance(after, datetime.time):
         #Do comparison with time of day, ignore date
         def betweenTime(date,value):
-            inputDate = datetime.datetime.fromtimestamp(date).time()
-            return inputDate < before and inputDate > after
+            return date.time() < before and date.time() > after
         event.attach(betweenTime)
     else:
         raise TypeError("Arguments should be datetime.time")
