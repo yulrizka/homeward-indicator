@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
 	name="Senselet",
-	version="0.1.1",
+	version="0.1.2",
 	author="Pim P. Nijdam",
 	author_email="pim.n@xs4all.nl",
 	packages=["senselet", "senselet.core", "senselet.events", "senselet.actions"],
