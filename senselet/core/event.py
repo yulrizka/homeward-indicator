@@ -26,10 +26,11 @@ class Proxy(object):
 Wrapper for events 
 """
 class Event(object):
-    def __init__(self, inputData=None):
+    def __init__(self, inputData=None, continueOnExceptions=True):
         self.inputData = inputData
         self._pipeline = []
         self._inputEvents = []
+        self.continueOnExceptions = continueOnExceptions
     
     def attach(self, function, *args, **kwargs):
         self._pipeline.append((function, args, kwargs))
@@ -57,6 +58,8 @@ class Event(object):
                     newValue = stage(date,value,*args, **kwargs)
                 except TypeError:
                     print "Exception in function {}.".format(stage.__name__)
+                    if self.continueOnException:
+                        break #continue with the next data point
                     raise
                 if newValue is None:
                     stopped = True
@@ -100,6 +103,8 @@ class Event(object):
                     newValue = stage(date,value,*args, **kwargs)
                 except TypeError:
                     print "Exception in function {}.".format(stage.__name__)
+                    if self.continueOnException:
+                        break #continue with the next data point
                     raise
                 if newValue is None:
                     stopped = True
@@ -312,3 +317,14 @@ def accumulate(self):
         state["value"] += value
         return state["value"]
     self.attach(accumulate, state)
+    
+@eventMethod("timeTrue")
+def timeTrue(self):
+    state={"last":None}
+    def timeTrue(date, value,state):
+        ret = 0
+        if value and state["last"] is not None:
+            ret = (date - state["last"]).total_seconds()
+        state["last"] = date if value else None
+        return ret
+    self.attach(timeTrue,state)

@@ -6,17 +6,17 @@ Created on Feb 16, 2013
 
 import json
 import threading
-import senseapi
+import senselet.events.senseapi
 import time
 import datetime
-from senselet.core import *
+from senselet.core import event, eventExpression
 import Queue
-import copy
 from twisted.internet.error import SSLError
+import copy
 
 class DataUploader:
     #size to limit an upload request to
-    MAX_UPLOAD_SIZE = 900*1024
+    MAX_UPLOAD_SIZE = 500*1024
     def __init__(self, api, interval=30):
         self.api = api
         self.interval = interval
@@ -24,7 +24,7 @@ class DataUploader:
         threading.Thread(target=self.run).start()
         
     def addData(self, sensorId, date, value):
-        self.dataQueue.put((sensorId, date, value))
+        self.dataQueue.put_nowait((sensorId, date, copy.deepcopy(value)))
         
     def upload(self):
         sensorData = {}
@@ -41,13 +41,18 @@ class DataUploader:
             sensorData[sensorId].append(item)
             size += len(json.dumps(item))
         
-
         parameters = {"sensors":[]}
         for sensorId in sensorData:
             parameters["sensors"].append({"sensor_id":sensorId, "data":sensorData[sensorId]})
+        print "Posting {} sensors to CS!".format(len(sensorData))
+        errorCount = 0
         while not self.api.SensorsDataPost(parameters):
-            print "Error uploading to sensor: {}".format(self.api.getResponse())
+            print "Error uploading to sensor. Status code: {}. Response: {}".format(self.api.getResponseStatus(), self.api.getResponse())
             time.sleep(30)
+            #give up after 3 attempts, we lose the data and move on...
+            if errorCount > 3:
+                print "Giving up... discarding this data and move on"
+                break
         
     def run(self):
         while True:
@@ -160,6 +165,7 @@ class UserEvent(event.Event):
 @eventExpression("saveToSensor")    
 def saveToSensor(date,value, session, sensorId):
     session.dataUploader.addData(sensorId, date, value)
+    return value
     
 def getDataFromFile(dataFile):
     json_data=open(dataFile)

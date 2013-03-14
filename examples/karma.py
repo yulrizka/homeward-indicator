@@ -59,8 +59,6 @@ def accumulateEach(self):
             if user not in state:
                 state[user] = 0
             state[user] += adjustment
-        #Ai, bad practise. It's better to return a deep copy
-        #return state
         return copy.deepcopy(state)
     self.attach(accumulate, state)
 

@@ -8,6 +8,7 @@ import json
 from geopy import geocoders
 from senselet.core import eventExpression, eventMethod
 from datetime import timedelta
+import requests
 
 def haversine(lat1, lon1, lat2, lon2):
     """
@@ -47,6 +48,19 @@ class Position(object):
     def distance(self, pos2):
         return distance(self, pos2)
     
+    def reverseGeoCode(self):
+        return reverseGeoCode(self.lat, self.lon)
+    
+def reverseGeoCode(lat,lon):
+    """
+    Return (displayName, addresss, type)
+    """
+    response = requests.get("http://nominatim.openstreetmap.org/reverse?format=json&zoom=18&addressdetails=1&lat={}&lon={}".format(lat,lon))
+    if not response:
+        raise Exception("Reverse geo lookup failed")
+
+    return (response.json()['display_name'], response.json()['address'], response.json()['osm_type'])
+    
 
 def distance(pos1,pos2):
         return haversine(pos1.lat,pos1.lon, pos2.lat,pos2.lon)
@@ -74,8 +88,33 @@ def isNear(self,pos,radius=200):
 
 @eventMethod("arrivedAt")
 def arriviedAt(self, location):
-    self.isNear(location).forTime(timedelta(minutes=5)).onBecomeTrue()    
+    self.isNear(location).onBecomeTrue()    
 
 @eventMethod("departedFrom")
 def departedFrom(self, location):
-    return self.isNear(location).forTime(timedelta(minutes=2)).onBecomeFalse()
+    return self.isNear(location).onBecomeFalse()
+
+@eventExpression("addAddressDetails")
+def addAddressDetails(date, value):
+    displayName, address, addressType = reverseGeoCode(value['latitude'], value['longitude'])
+    value['address'] = displayName
+    value['address details'] = address
+    value['address type'] = addressType
+    return value
+
+@eventMethod("onImmobile")
+def onImmobile(self, radius=50):
+    state = {}
+    state['position'] = None
+    def mobile(date,value):
+        x = json.loads(value)
+        pos = Position(float(x['latitude']), float(x['longitude']))
+        if 'position' not in state:
+            state['position'] = pos
+            return None
+        if pos.distance(state['position']) < radius:
+            return value
+        else:
+            state['position'] = pos
+            return None
+    self.attach(mobile,state)
