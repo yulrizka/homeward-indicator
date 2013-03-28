@@ -6,6 +6,7 @@ Created on Feb 16, 2013
 import threading
 import Queue
 import datetime
+import traceback
 """
 A proxy to facilitate some weird syntax. Probably a bad idea, don't count on this being around in the future.
 """
@@ -26,11 +27,11 @@ class Proxy(object):
 Wrapper for events 
 """
 class Event(object):
-    def __init__(self, inputData=None, continueOnExceptions=True):
+    def __init__(self, inputData=None, continueOnException=True):
         self.inputData = inputData
         self._pipeline = []
         self._inputEvents = []
-        self.continueOnExceptions = continueOnExceptions
+        self.continueOnException = continueOnException
     
     def attach(self, function, *args, **kwargs):
         self._pipeline.append((function, args, kwargs))
@@ -56,8 +57,9 @@ class Event(object):
             for (stage, args, kwargs) in self._pipeline:
                 try:
                     newValue = stage(date,value,*args, **kwargs)
-                except TypeError:
-                    print "Exception in function {}.".format(stage.__name__)
+                except Exception as e:
+                    print "Exception in function {}:".format(stage.__name__)
+                    print traceback.format_exc()
                     if self.continueOnException:
                         break #continue with the next data point
                     raise
@@ -101,8 +103,9 @@ class Event(object):
             for (stage, args, kwargs) in self._pipeline:
                 try:
                     newValue = stage(date,value,*args, **kwargs)
-                except TypeError:
-                    print "Exception in function {}.".format(stage.__name__)
+                except Exception as e:
+                    print "Exception in function {}:".format(stage.__name__)
+                    print traceback.format_exc()
                     if self.continueOnException:
                         break #continue with the next data point
                     raise
