@@ -11,7 +11,7 @@ import time
 import datetime
 from senselet.core import event, eventExpression
 import Queue
-from twisted.internet.error import SSLError
+from ssl import SSLError
 import copy
 
 class DataUploader:
