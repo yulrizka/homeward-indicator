@@ -166,8 +166,10 @@ class SenseAPI:
 				body = json.dumps(parameters) 
 
 		elif self.__authentication__ == 'oauth':
+			if not parameters is None:
+				parameters = sorted(parameters.items())
 			oauth_url = 'http://{0}{1}'.format(self.__server_url__, url)
-			oauth_request = oauth.OAuthRequest.from_consumer_and_token(self.__oauth_consumer__, token=self.__oauth_token__, http_method=method, http_url=oauth_url)
+			oauth_request = oauth.OAuthRequest.from_consumer_and_token(self.__oauth_consumer__, token=self.__oauth_token__, http_method=method, http_url=oauth_url,parameters=parameters)
 			oauth_request.sign_request(oauth.OAuthSignatureMethod_HMAC_SHA1(), self.__oauth_consumer__, self.__oauth_token__)
 			heads.update(oauth_request.to_header())
 			if not parameters is None:
