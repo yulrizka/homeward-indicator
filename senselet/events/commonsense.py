@@ -13,6 +13,7 @@ from senselet.core import event, eventExpression
 import Queue
 from ssl import SSLError
 import copy
+import operator
 
 class DataUploader:
     #size to limit an upload request to
@@ -201,11 +202,10 @@ def getSensorId(api, sensorName, deviceType=None, description=None, userName=Non
                     ld = data[-1]["date"]
             return ld
         sensorDate = {x:lastDate(x) for x in ids}
-        sensorId = sorted(sensorDate, key=lambda x:x[1])[-1]
+	sensorId = max(sensorDate.iteritems(), key=operator.itemgetter(1))[0]
     else:
         sensorId = ids[-1]
 
-    sensorId = correctSensors[-1]["id"]
     return sensorId
 
 
