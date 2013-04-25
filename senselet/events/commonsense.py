@@ -189,8 +189,25 @@ def getSensorId(api, sensorName, deviceType=None, description=None, userName=Non
         correctSensors = filter(lambda x: "owner" in x and x["owner"]["username"] == userName, correctSensors)
     if len(correctSensors) == 0:
         raise ValueError("Sensor {} not found!".format(sensorName))
+    
+    ids = [x["id"] for x in correctSensors]
+    if len(correctSensors) > 0:
+        #choose the sensor with the most recent data point
+        def lastDate(sensorId):
+            ld = 0
+            if api.SensorDataGet(sensorId,{"last":1}):
+                data = json.loads(api.getResponse())["data"]
+                if len(data) > 0:
+                    ld = data[-1]["date"]
+            return ld
+        sensorDate = {x:lastDate(x) for x in ids}
+        sensorId = sorted(sensorDate, key=lambda x:x[1])[-1]
+    else:
+        sensorId = ids[-1]
+
     sensorId = correctSensors[-1]["id"]
     return sensorId
+
 
 def getSensorData(api, sensorId, fromDate=None, refreshInterval=None):
     par= {'sort': 'ASC'}
