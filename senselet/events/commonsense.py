@@ -126,6 +126,10 @@ class UserEvent(event.Event):
         self._sensors.append(name)
         
         return self
+
+    def sensorId(self, sensorId):
+        self._inputSensorId = sensorId
+        return self
     
     def deviceType(self, deviceType):
         self._deviceType = deviceType
@@ -156,7 +160,10 @@ class UserEvent(event.Event):
             fromDate = datetime.datetime.now()
         else:
             fromDate = self._fromDate
-        if self._user._isMe:
+
+	if self._inputSensorId:
+            sensorId = self._inputSensorId
+        elif self._user._isMe:
             sensorId = getSensorId(self._user._session.api, self._sensors[0], self._deviceType, self._description)
         else:
             sensorId = getSensorId(self._user._session.api, self._sensors[0], self._deviceType, self._description, self._user.username)
@@ -177,6 +184,7 @@ def getDataFromFile(dataFile):
         
 def getSensorId(api, sensorName, deviceType=None, description=None, userName=None):
     owned = 1 if userName is None else 0
+
     #find sensor
     if not api.SensorsGet({'per_page':1000, 'details':'full', 'order':'asc', "owned":owned}):
             raise Exception("Couldn't get sensors. {}".format(api.getResponse()))
